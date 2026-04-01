@@ -33,7 +33,7 @@ export default function OnboardingPage() {
       .single()
 
     if (familyError) {
-      setError('שגיאה ביצירת המשפחה. נסה שנית.')
+      setError(`שגיאה: ${familyError.message} (${familyError.code})`)
       setIsLoading(false)
       return
     }
