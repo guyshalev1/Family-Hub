@@ -29,7 +29,7 @@ export default function OnboardingPage() {
       return
     }
 
-    router.push('/')
+    window.location.href = '/'
   }
 
   return (
