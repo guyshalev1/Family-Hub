@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 export default function OnboardingPage() {
@@ -9,7 +8,6 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   const handleCreateFamily = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,34 +16,18 @@ export default function OnboardingPage() {
     setIsLoading(true)
     setError('')
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      router.push('/login')
-      return
-    }
-    const user = session.user
+    const res = await fetch('/api/family/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ familyName: familyName.trim() }),
+    })
 
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-
-    const { data: family, error: familyError } = await supabase
-      .from('families')
-      .insert({ name: familyName.trim(), invite_code: inviteCode, created_by: user.id })
-      .select()
-      .single()
-
-    if (familyError) {
-      setError(`שגיאה: ${familyError.message}`)
+    const data = await res.json()
+    if (!res.ok) {
+      setError(`שגיאה: ${data.error}`)
       setIsLoading(false)
       return
     }
-
-    await supabase.from('members').insert({
-      family_id: family.id,
-      user_id: user.id,
-      name: user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'הורה',
-      role: 'parent',
-      avatar_url: user.user_metadata?.avatar_url,
-    })
 
     router.push('/')
   }
