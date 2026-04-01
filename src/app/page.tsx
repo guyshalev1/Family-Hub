@@ -28,12 +28,13 @@ export default function DashboardPage() {
 
       setUserName(user.user_metadata?.full_name?.split(' ')[0] ?? 'משתמש')
 
-      const { data: member } = await supabase
+      const { data: member, error: memberError } = await supabase
         .from('members')
         .select('family_id')
         .eq('user_id', user.id)
         .single()
 
+      console.log('member query result:', member, 'error:', memberError)
       if (!member) return router.push('/onboarding')
 
       await loadFamily(member.family_id)
