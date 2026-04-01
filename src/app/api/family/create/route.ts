@@ -6,8 +6,10 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized - no user session found' }, { status: 401 })
   }
+
+  console.log('Creating family for user:', user.id)
 
   const { familyName } = await request.json()
   if (!familyName?.trim()) {
@@ -23,7 +25,8 @@ export async function POST(request: Request) {
     .single()
 
   if (familyError) {
-    return NextResponse.json({ error: familyError.message }, { status: 500 })
+    console.error('Family insert error:', familyError)
+    return NextResponse.json({ error: familyError.message, code: familyError.code }, { status: 500 })
   }
 
   const { error: memberError } = await supabase.from('members').insert({
