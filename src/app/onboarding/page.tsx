@@ -18,11 +18,12 @@ export default function OnboardingPage() {
     setIsLoading(true)
     setError('')
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
       router.push('/login')
       return
     }
+    const user = session.user
 
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
 
