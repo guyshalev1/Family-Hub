@@ -34,7 +34,7 @@ export default function OnboardingPage() {
       .single()
 
     if (familyError) {
-      setError(`שגיאה: ${familyError.message} (${familyError.code})`)
+      setError(`שגיאה: ${familyError.message}`)
       setIsLoading(false)
       return
     }
