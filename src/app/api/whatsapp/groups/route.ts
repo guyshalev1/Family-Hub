@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getChats } from '@/lib/whatsapp'
+import { getChats, getGroupName } from '@/lib/whatsapp'
 import { NextResponse } from 'next/server'
 
 // GET - Fetch and sync groups from WhatsApp
@@ -22,6 +22,17 @@ export async function GET() {
   const chats = await getChats(connection.instance_id, connection.api_token)
   const groups = chats.filter((c) => c.type === 'group')
 
+  // For groups whose name is just their ID (blank/missing), fetch the real name via getGroupData
+  const resolvedGroups = await Promise.all(
+    groups.map(async (g) => {
+      if (!g.name || g.name === g.id) {
+        const realName = await getGroupName(connection.instance_id, connection.api_token, g.id)
+        return { ...g, name: realName }
+      }
+      return g
+    })
+  )
+
   // Get existing monitored groups from DB
   const { data: existingGroups } = await supabase
     .from('whatsapp_groups')
@@ -31,8 +42,8 @@ export async function GET() {
   const monitoredIds = new Set((existingGroups ?? []).filter((g) => g.is_monitored).map((g) => g.group_id))
 
   // Upsert all groups (preserve is_monitored flag)
-  if (groups.length > 0) {
-    const upsertData = groups.map((g) => ({
+  if (resolvedGroups.length > 0) {
+    const upsertData = resolvedGroups.map((g) => ({
       connection_id: connection.id,
       group_id: g.id,
       group_name: g.name,
@@ -44,9 +55,13 @@ export async function GET() {
       .upsert(upsertData, { onConflict: 'connection_id,group_id' })
   }
 
-  // Return groups with current monitoring state
+  // Return with consistent field names matching what the UI expects
   return NextResponse.json(
-    groups.map((g) => ({ ...g, is_monitored: monitoredIds.has(g.id) }))
+    resolvedGroups.map((g) => ({
+      group_id: g.id,
+      group_name: g.name,
+      is_monitored: monitoredIds.has(g.id),
+    }))
   )
 }
 

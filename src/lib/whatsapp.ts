@@ -49,12 +49,28 @@ export async function getQRCode(instanceId: string, apiToken: string) {
 export async function getChats(instanceId: string, apiToken: string): Promise<GreenAPIChat[]> {
   const res = await fetch(`${GREEN_API_BASE}/waInstance${instanceId}/getChats/${apiToken}`)
   if (!res.ok) throw new Error('Failed to get chats')
-  const chats: Array<{ id: string; name: string; type?: string }> = await res.json()
+  // Green API may return name in different fields depending on version/plan
+  const chats: Array<{ id: string; name?: string; subject?: string; groupName?: string }> = await res.json()
   return chats.map((c) => ({
     id: c.id,
-    name: c.name || c.id,
+    name: c.name || c.subject || c.groupName || c.id,
     type: c.id.endsWith('@g.us') ? 'group' : 'private',
   }))
+}
+
+export async function getGroupName(instanceId: string, apiToken: string, groupId: string): Promise<string> {
+  try {
+    const res = await fetch(`${GREEN_API_BASE}/waInstance${instanceId}/getGroupData/${apiToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupId }),
+    })
+    if (!res.ok) return groupId
+    const data = await res.json()
+    return data.subject || data.name || groupId
+  } catch {
+    return groupId
+  }
 }
 
 export async function setWebhookUrl(

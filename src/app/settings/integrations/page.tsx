@@ -48,6 +48,7 @@ export default function IntegrationsPage() {
   const [loadingGroups, setLoadingGroups] = useState(false)
   const [waError, setWaError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [groupFilter, setGroupFilter] = useState('')
 
   // Load current status
   const loadStatuses = useCallback(async () => {
@@ -400,26 +401,47 @@ export default function IntegrationsPage() {
                   </button>
                 </div>
 
+                {wa.groups.length > 0 && (
+                  <input
+                    type="text"
+                    value={groupFilter}
+                    onChange={(e) => setGroupFilter(e.target.value)}
+                    placeholder="סנן לפי שם קבוצה..."
+                    className="w-full border rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  />
+                )}
+
                 {wa.groups.length === 0 ? (
                   <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed rounded-lg">
                     <p>לחץ "רענן רשימה" כדי לטעון את הקבוצות שלך</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {wa.groups.map((g) => (
-                      <label
-                        key={g.group_id}
-                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={g.is_monitored}
-                          onChange={(e) => handleToggleGroup(g.group_id, e.target.checked)}
-                          className="w-4 h-4 accent-green-600"
-                        />
-                        <span className="text-sm text-gray-700">{g.group_name}</span>
-                      </label>
-                    ))}
+                    {wa.groups
+                      .filter((g) =>
+                        !groupFilter || (g.group_name ?? '').toLowerCase().includes(groupFilter.toLowerCase())
+                      )
+                      .map((g) => (
+                        <label
+                          key={g.group_id}
+                          className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={g.is_monitored}
+                            onChange={(e) => handleToggleGroup(g.group_id, e.target.checked)}
+                            className="w-4 h-4 accent-green-600"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {g.group_name || g.group_id}
+                          </span>
+                        </label>
+                      ))}
+                    {groupFilter && wa.groups.filter((g) =>
+                      (g.group_name ?? '').toLowerCase().includes(groupFilter.toLowerCase())
+                    ).length === 0 && (
+                      <p className="text-xs text-gray-400 text-center py-4">אין קבוצות התואמות לחיפוש</p>
+                    )}
                   </div>
                 )}
               </div>
