@@ -7,6 +7,7 @@ export default function OnboardingPage() {
   const [tab, setTab] = useState<'create' | 'join'>('create')
   const [familyName, setFamilyName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
+  const [role, setRole] = useState<'parent' | 'child'>('parent')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -41,7 +42,7 @@ export default function OnboardingPage() {
     const res = await fetch('/api/family/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inviteCode: inviteCode.trim() }),
+      body: JSON.stringify({ inviteCode: inviteCode.trim(), role }),
     })
 
     const data = await res.json()
@@ -112,6 +113,27 @@ export default function OnboardingPage() {
               />
               <p className="text-xs text-gray-400 mt-1">בקש את הקוד מחבר המשפחה שיצר את הקבוצה</p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">תפקיד במשפחה</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole('parent')}
+                  className={`py-3 rounded-xl border-2 text-sm font-medium transition-colors ${role === 'parent' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                >
+                  👨‍👩‍👧 הורה
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('child')}
+                  className={`py-3 rounded-xl border-2 text-sm font-medium transition-colors ${role === 'child' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                >
+                  🧒 ילד
+                </button>
+              </div>
+            </div>
+
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
               type="submit"

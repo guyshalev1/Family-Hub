@@ -167,6 +167,8 @@ export default function DashboardPage() {
   const [filterMember, setFilterMember] = useState('')
   const [showHistory, setShowHistory] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
+  const [showShare, setShowShare] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [form, setForm] = useState<TaskFormData>({ title: '', type: 'chore', assigned_to: '', due_date: '', description: '' })
 
   useEffect(() => {
@@ -261,9 +263,42 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             <span className="text-gray-600 text-sm">שלום, {userName}!</span>
             {inviteCode && (
-              <span className="text-xs text-gray-400 hidden sm:inline" title="קוד הצטרפות למשפחה">
-                קוד: <span className="font-mono font-bold text-gray-600">{inviteCode}</span>
-              </span>
+              <div className="relative">
+                <button
+                  onClick={() => setShowShare(!showShare)}
+                  className="text-sm text-gray-400 hover:text-blue-500 transition-colors"
+                  title="שתף לוח עם בן משפחה"
+                >
+                  👥 שתף
+                </button>
+
+                {showShare && (
+                  <div className="absolute left-0 top-9 bg-white border rounded-2xl shadow-xl p-5 w-72 z-50" dir="rtl">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-gray-800">הזמן בן משפחה</h3>
+                      <button onClick={() => setShowShare(false)} className="text-gray-300 hover:text-gray-500">✕</button>
+                    </div>
+
+                    <p className="text-xs text-gray-500 mb-3">שלח את הקוד הבא לבן המשפחה. הם יוכלו להצטרף דרך מסך הכניסה ולבחור את תפקידם (הורה / ילד).</p>
+
+                    <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center py-4 mb-3">
+                      <p className="text-xs text-gray-400 mb-1">קוד הצטרפות</p>
+                      <p className="font-mono text-2xl font-bold text-gray-800 tracking-widest">{inviteCode}</p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(inviteCode)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-xl transition-colors"
+                    >
+                      {copied ? '✓ הועתק!' : 'העתק קוד'}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             <Link href="/settings/integrations" className="text-sm text-gray-400 hover:text-blue-500 transition-colors">
               🔌

@@ -3,7 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  const { inviteCode } = await request.json()
+  const { inviteCode, role = 'parent' } = await request.json()
 
   if (!inviteCode?.trim()) {
     return NextResponse.json({ error: 'קוד הזמנה נדרש' }, { status: 400 })
@@ -40,12 +40,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'קוד הזמנה לא תקין' }, { status: 404 })
   }
 
-  // Add user as parent member
+  const safeRole = role === 'child' ? 'child' : 'parent'
+
   const { error } = await admin.from('members').insert({
     family_id: family.id,
     user_id: user.id,
     name: user.user_metadata?.full_name ?? user.email ?? 'חבר',
-    role: 'parent',
+    role: safeRole,
     avatar_url: user.user_metadata?.avatar_url ?? null,
   })
 
