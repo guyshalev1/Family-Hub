@@ -62,3 +62,24 @@ export async function deleteCalendarEvent(
     eventId,
   })
 }
+
+export async function listUpcomingEvents(
+  accessToken: string,
+  refreshToken: string,
+  daysAhead = 30
+) {
+  const calendar = await getCalendarClient(accessToken, refreshToken)
+  const now = new Date()
+  const future = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
+
+  const response = await calendar.events.list({
+    calendarId: 'primary',
+    timeMin: now.toISOString(),
+    timeMax: future.toISOString(),
+    singleEvents: true,
+    orderBy: 'startTime',
+    maxResults: 100,
+  })
+
+  return response.data.items ?? []
+}

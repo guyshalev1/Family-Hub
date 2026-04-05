@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useFamilyStore } from '@/lib/store'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 type TaskFormData = {
   title: string
@@ -106,6 +107,9 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-gray-600 text-sm">שלום, {userName}!</span>
+            <Link href="/settings/integrations" className="text-sm text-gray-400 hover:text-blue-500 transition-colors">
+              🔌 חיבורים
+            </Link>
             <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-red-500 transition-colors">
               התנתק
             </button>
@@ -244,6 +248,12 @@ export default function DashboardPage() {
                         <span>{typeLabels[task.type]}</span>
                         {assignee && <span>👤 {assignee.name}</span>}
                         {task.due_date && <span>📅 {new Date(task.due_date).toLocaleDateString('he-IL')}</span>}
+                        {(task as any).source === 'calendar' && (
+                          <span className="text-blue-400" title="נוצר מ-Google Calendar">📆</span>
+                        )}
+                        {(task as any).source === 'whatsapp' && (
+                          <span className="text-green-400" title="נוצר מ-WhatsApp">💬</span>
+                        )}
                       </div>
                       {task.description && <p className="text-xs text-gray-500 mt-1.5">{task.description}</p>}
                     </div>

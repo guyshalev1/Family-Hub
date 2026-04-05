@@ -29,11 +29,41 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('tasks')
-    .insert({ ...body, created_by: user.id })
-    .select()
+    .insert({ ...body, source: body.source ?? 'manual', created_by: user.id })
+    .select('*, members!assigned_to(name)')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Auto-sync manual tasks to the creator's Google Calendar
+  if ((body.source ?? 'manual') === 'manual' && data.due_date) {
+    const { data: googleAccount } = await supabase
+      .from('google_accounts')
+      .select('access_token, refresh_token')
+      .eq('user_id', user.id)
+      .single()
+
+    if (googleAccount) {
+      const { createCalendarEvent } = await import('@/lib/google-calendar')
+      const eventId = await createCalendarEvent(
+        googleAccount.access_token,
+        googleAccount.refresh_token,
+        {
+          title: data.title,
+          description: data.description,
+          due_date: data.due_date,
+          type: data.type,
+          assigned_to_name: data.members?.name ?? 'לא משובץ',
+        }
+      ).catch(() => null)
+
+      if (eventId) {
+        await supabase.from('tasks').update({ gcal_event_id: eventId }).eq('id', data.id)
+        data.gcal_event_id = eventId
+      }
+    }
+  }
+
   return NextResponse.json(data, { status: 201 })
 }
 
