@@ -14,11 +14,13 @@ export type Task = {
   description?: string
   assigned_to?: string
   due_date?: string
-  status: 'pending' | 'in_progress' | 'done'
+  status: 'pending' | 'in_progress' | 'done' | 'deleted'
   type: 'homework' | 'chore' | 'appointment' | 'other'
   created_by: string
   family_id: string
   gcal_event_id?: string
+  source?: 'manual' | 'calendar' | 'whatsapp'
+  external_id?: string
 }
 
 export type WeeklySchedule = {
@@ -36,9 +38,10 @@ type FamilyStore = {
   isLoading: boolean
   setFamilyId: (id: string) => void
   loadFamily: (familyId: string) => Promise<void>
-  addTask: (task: Omit<Task, 'id'>) => Promise<void>
+  addTask: (task: Omit<Task, 'id'>) => Promise<Task | null>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  restoreTask: (id: string) => Promise<void>
   subscribeToRealtime: (familyId: string) => () => void
 }
 
@@ -57,7 +60,8 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
 
     const [membersRes, tasksRes, schedulesRes] = await Promise.all([
       supabase.from('members').select('*').eq('family_id', familyId),
-      supabase.from('tasks').select('*').eq('family_id', familyId).eq('status', 'pending').order('due_date'),
+      // Load all statuses — UI handles filtering
+      supabase.from('tasks').select('*').eq('family_id', familyId).order('due_date'),
       supabase.from('weekly_schedules').select('*').eq('family_id', familyId),
     ])
 
@@ -75,23 +79,65 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     const { data, error } = await supabase.from('tasks').insert(task).select().single()
     if (!error && data) {
       set((state) => ({ tasks: [...state.tasks, data] }))
+      return data
     }
+    return null
   },
 
   updateTask: async (id, updates) => {
     const supabase = createClient()
+    const prev = get().tasks.find((t) => t.id === id)
     const { error } = await supabase.from('tasks').update(updates).eq('id', id)
     if (!error) {
       set((state) => ({
         tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
       }))
+      // Record history if status changed
+      if (updates.status && prev?.status !== updates.status) {
+        const { data: { user } } = await supabase.auth.getUser()
+        await supabase.from('task_history').insert({
+          task_id: id,
+          user_id: user?.id,
+          old_status: prev?.status ?? null,
+          new_status: updates.status,
+        })
+      }
     }
   },
 
+  // Soft delete — sets status to 'deleted' and keeps record for history
   deleteTask: async (id) => {
     const supabase = createClient()
-    await supabase.from('tasks').delete().eq('id', id)
-    set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }))
+    const prev = get().tasks.find((t) => t.id === id)
+    await supabase.from('tasks').update({ status: 'deleted' }).eq('id', id)
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? { ...t, status: 'deleted' } : t)),
+    }))
+    if (prev) {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('task_history').insert({
+        task_id: id,
+        user_id: user?.id,
+        old_status: prev.status,
+        new_status: 'deleted',
+      })
+    }
+  },
+
+  // Restore deleted task back to pending
+  restoreTask: async (id) => {
+    const supabase = createClient()
+    await supabase.from('tasks').update({ status: 'pending' }).eq('id', id)
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? { ...t, status: 'pending' } : t)),
+    }))
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('task_history').insert({
+      task_id: id,
+      user_id: user?.id,
+      old_status: 'deleted',
+      new_status: 'pending',
+    })
   },
 
   subscribeToRealtime: (familyId) => {

@@ -20,10 +20,10 @@ export async function POST() {
     return NextResponse.json({ error: 'No Google account connected' }, { status: 400 })
   }
 
-  // Get user's family
+  // Get user's family and member ID (member.id = default task assignee)
   const { data: member } = await supabase
     .from('members')
-    .select('family_id')
+    .select('id, family_id')
     .eq('user_id', user.id)
     .single()
 
@@ -72,6 +72,7 @@ export async function POST() {
         external_id: `gcal:${event.id}`,
         created_by: user.id,
         gcal_event_id: event.id,
+        assigned_to: member.id,
       }
     })
 

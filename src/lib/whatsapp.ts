@@ -73,6 +73,21 @@ export async function getGroupName(instanceId: string, apiToken: string, groupId
   }
 }
 
+// Poll one pending notification from the Green API queue
+export async function receiveNotification(instanceId: string, apiToken: string) {
+  const res = await fetch(`${GREEN_API_BASE}/waInstance${instanceId}/receiveNotification/${apiToken}`)
+  if (!res.ok) return null
+  const data = await res.json()
+  return data as { receiptId: number; body: IncomingWebhook } | null
+}
+
+// Acknowledge and remove a notification from the queue
+export async function deleteNotification(instanceId: string, apiToken: string, receiptId: number) {
+  await fetch(`${GREEN_API_BASE}/waInstance${instanceId}/deleteNotification/${apiToken}/${receiptId}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function setWebhookUrl(
   instanceId: string,
   apiToken: string,

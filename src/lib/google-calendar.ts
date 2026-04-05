@@ -1,4 +1,4 @@
-import { google } from 'googleapis'
+import { google, type calendar_v3 } from 'googleapis'
 
 export function getOAuthClient() {
   return new google.auth.OAuth2(
@@ -82,4 +82,41 @@ export async function listUpcomingEvents(
   })
 
   return response.data.items ?? []
+}
+
+// Incremental sync: returns changed events since last sync + new syncToken.
+// Pass syncToken=undefined for a full sync.
+// Returns { items, nextSyncToken } — items includes cancelled (deleted) events.
+export async function listChangedEvents(
+  accessToken: string,
+  refreshToken: string,
+  syncToken?: string
+): Promise<{ items: Awaited<ReturnType<typeof listUpcomingEvents>>; nextSyncToken: string | null | undefined }> {
+  const calendar = await getCalendarClient(accessToken, refreshToken)
+
+  const params: calendar_v3.Params$Resource$Events$List = {
+    calendarId: 'primary',
+    showDeleted: true,
+    singleEvents: true,
+    maxResults: 250,
+  }
+
+  if (syncToken) {
+    params.syncToken = syncToken
+  } else {
+    // Full sync: get events from 30 days ago to 60 days ahead
+    const past = new Date()
+    past.setDate(past.getDate() - 30)
+    const future = new Date()
+    future.setDate(future.getDate() + 60)
+    params.timeMin = past.toISOString()
+    params.timeMax = future.toISOString()
+    params.orderBy = 'startTime'
+  }
+
+  const response = await calendar.events.list(params)
+  return {
+    items: response.data.items ?? [],
+    nextSyncToken: response.data.nextSyncToken,
+  }
 }
