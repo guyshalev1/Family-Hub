@@ -169,6 +169,10 @@ export default function DashboardPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [showShare, setShowShare] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showAccess, setShowAccess] = useState(false)
+  const [allowedEmails, setAllowedEmails] = useState<string[]>([])
+  const [newEmail, setNewEmail] = useState('')
+  const [isParent, setIsParent] = useState(false)
   const [form, setForm] = useState<TaskFormData>({ title: '', type: 'chore', assigned_to: '', due_date: '', description: '' })
 
   useEffect(() => {
@@ -181,12 +185,13 @@ export default function DashboardPage() {
 
       const { data: member } = await supabase
         .from('members')
-        .select('id, family_id')
+        .select('id, family_id, role')
         .eq('user_id', user.id)
         .single()
 
       if (!member) return router.push('/onboarding')
       setCurrentMemberId(member.id)
+      setIsParent(member.role === 'parent')
 
       await loadFamily(member.family_id)
 
@@ -232,6 +237,24 @@ export default function DashboardPage() {
 
   const handleStatusChange = (id: string, status: Task['status']) => updateTask(id, { status })
   const handleOwnerChange = (id: string, memberId: string) => updateTask(id, { assigned_to: memberId || undefined })
+
+  const loadAllowedEmails = async () => {
+    const { data } = await supabase.from('allowed_emails').select('email').order('created_at')
+    setAllowedEmails((data ?? []).map((r) => r.email))
+  }
+
+  const handleAddEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEmail.trim()) return
+    await supabase.from('allowed_emails').insert({ email: newEmail.trim().toLowerCase() })
+    setNewEmail('')
+    loadAllowedEmails()
+  }
+
+  const handleRemoveEmail = async (email: string) => {
+    await supabase.from('allowed_emails').delete().eq('email', email)
+    loadAllowedEmails()
+  }
 
   // Filtered active tasks
   const activeTasks = tasks.filter((t) =>
@@ -329,6 +352,60 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Access Management (parents only) */}
+        {isParent && (
+          <section className="mb-5">
+            <button
+              onClick={() => { setShowAccess(!showAccess); if (!showAccess) loadAllowedEmails() }}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <span>🔐</span>
+              <span>ניהול גישה למערכת</span>
+              <span>{showAccess ? '▲' : '▼'}</span>
+            </button>
+
+            {showAccess && (
+              <div className="mt-3 bg-white rounded-xl border shadow-sm p-4 space-y-3">
+                <p className="text-xs text-gray-500">כתובות אימייל שמורשות להתחבר למערכת:</p>
+
+                <div className="space-y-1.5">
+                  {allowedEmails.map((email) => (
+                    <div key={email} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="text-gray-700 font-mono text-xs">{email}</span>
+                      <button
+                        onClick={() => handleRemoveEmail(email)}
+                        className="text-gray-300 hover:text-red-400 transition-colors text-xs"
+                      >
+                        הסר
+                      </button>
+                    </div>
+                  ))}
+                  {allowedEmails.length === 0 && (
+                    <p className="text-xs text-gray-400">אין כתובות מאושרות</p>
+                  )}
+                </div>
+
+                <form onSubmit={handleAddEmail} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="הוסף אימייל חדש..."
+                    className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    אשר
+                  </button>
+                </form>
+              </div>
+            )}
           </section>
         )}
 

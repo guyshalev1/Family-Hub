@@ -25,13 +25,28 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const publicPaths = ['/login', '/auth/callback']
+  const publicPaths = ['/login', '/auth/callback', '/access-denied']
   const isPublicPath = publicPaths.some(p => request.nextUrl.pathname.startsWith(p))
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
+  }
+
+  // Check email allowlist for authenticated users on protected paths
+  if (user && !isPublicPath) {
+    const { data: allowed } = await supabase
+      .from('allowed_emails')
+      .select('id')
+      .eq('email', user.email ?? '')
+      .single()
+
+    if (!allowed) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/access-denied'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse
